@@ -10,7 +10,8 @@ import addusericon from '../assets/new-user.png'
 import defaultUserIcon from '../assets/defaultuser2.png'
 import defaultLoginUserIcon from '../assets/defaultuser.png'
 import Config from '../utils/config';
-
+import Loader from '../assets/loader.svg';
+import CreatedBy from './CreatedBy';
 const socket = io(Config.URL);
 
 const ChatPage = () => {
@@ -20,7 +21,7 @@ const ChatPage = () => {
     const loggedUserID = localStorage.getItem('user');
     const loginUser = JSON.parse(loggedUserID);
     const currentUserID = loginUser?.user?._id || "";
-
+    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
     const [contacts, setContacts] = useState([]);
@@ -89,6 +90,7 @@ const ChatPage = () => {
 
     const handleLogout = () => {
         // Correctly format the body as JSON and set Content-Type header
+        setLoading(true)
         const payload = {
             name: loginUser?.user?.name,
             mobileNumber: loginUser?.user?.mobileNumber
@@ -109,6 +111,7 @@ const ChatPage = () => {
             .then(data => {
                 console.log('User login:', data);
                 localStorage.clear('user')
+                setLoading(false)
                 navigate('/')
                 Swal.fire("Logout successful!") // Store the returned data instead of formData
             })
@@ -121,13 +124,12 @@ const ChatPage = () => {
 
     return (
         <div className="md:flex h-screen">
-            <aside className={`${isMobileContactsVisible ? 'block' : 'hidden'} md:block md:w-[30%] h-full flex flex-col justify-between border text-black overflow-auto`}>
+            <aside className={`${isMobileContactsVisible ? 'block' : 'hidden'} md:block md:w-[40%] h-screen flex flex-col justify-between border text-black overflow-auto`}>
                 <div>
-                    <div className=" flex justify-between item-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2">
-
+                    <div className="flex justify-between item-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 bg-gradient-to-r from-blue-700 via-blue-300 to-blue-500 animate-gradient-xy">
                         <div className='flex item-center gap-2'>
-                            <div className='rounded-full '>
-                                <img className='rounded-full w-10 h-10 ' src={loginUser?.user?.profilePic ? loginUser?.user?.profilePic : defaultLoginUserIcon} />
+                            <div className='rounded-full'>
+                                <img className='rounded-full w-10 h-10' src={loginUser?.user?.profilePic ? loginUser?.user?.profilePic : defaultLoginUserIcon} alt="Profile" />
                             </div>
                             <div>
                                 <div className='font-semibold'>{loginUser?.user?.name}</div>
@@ -136,12 +138,11 @@ const ChatPage = () => {
                         </div>
 
                         <div className='relative group flex justify-center items-center'>
-                            <img src={addusericon} className='w-10 cursor-pointer rounded-full text-center' onClick={() => setAddUserModal(true)} />
-                            <div className=' whitespace-nowrap w-full text-xs  absolute opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out -top-1'>
+                            <img src={addusericon} alt="Add user" className='w-10 cursor-pointer rounded-full text-center' onClick={() => setAddUserModal(true)} />
+                            <div className='whitespace-nowrap w-full text-xs absolute opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out -top-1'>
                                 Add
                             </div>
                         </div>
-
                     </div>
                     <div>
                         <div className="p-2">
@@ -153,40 +154,55 @@ const ChatPage = () => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <div className='h-[370px] overflow-auto scrollbar-thin'>
+                        <div className='overflow-auto scrollbar-thin' style={{ height: 'calc(100vh - 220px)' }}> {/* Adjusted for dynamic height */}
                             {filteredContacts.map((contact, index) => (
-                                <div key={index} onClick={() => selectContact(contact)} className="p-2 hover:bg-gray-500 hover:text-white cursor-pointer">
-                                    <div className='flex items-center gap-2 relative border p-1 border-t-0 border-l-0 border-r-0'>
+                                <div key={index} onClick={() => selectContact(contact)} className="p-2 border hover:bg-blue-50  border-t-0 border-l-0 border-r-0 cursor-pointer">
+                                    <div className='flex items-center gap-2 relative  '>
                                         <div className='rounded-full'>
-                                            <img className='rounded-full w-10 h-10' src={contact?.profilePic ? contact?.profilePic : defaultUserIcon} alt={`loading`} />
+                                            <img className='rounded-full w-10 h-10' src={contact?.profilePic ? contact?.profilePic : defaultUserIcon} alt="Contact" />
                                             {/* Status indicator dot */}
                                             <span className={`absolute left-6 top-0 block h-3 w-3 rounded-full ${contact.isLogin ? 'bg-green-500' : 'bg-gray-400'}`} style={{ border: '2px solid white', transform: 'translate(50%, 50%)' }}></span>
                                         </div>
                                         <div>
-                                            <div className='font-semibold'>{contact?.name}</div>
+                                            <div className='font-semibold capitalize'>{contact?.name}</div>
                                             <div className='text-xs'>{contact?.mobileNumber}</div>
                                         </div>
                                     </div>
                                 </div>
                             ))}
-
                         </div>
                     </div>
                 </div>
 
-                <div className='mb-8 p-2'>
-                    <div onClick={() => handleLogout()} className=' p-2 w-full text-center border hover:bg-white hover:text-black cursor-pointer '>logout</div>
+                <div className=' p-2 w-full'>
+                    <div onClick={() => handleLogout()}
+                        className="w-full cursor-pointer inline-flex justify-center py-3 px-4 border border shadow-lg text-sm font-medium rounded-md  disabled:opacity-50"
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <>
+                                <img src={Loader} alt="Loading" className="w-5 h-5 mr-2 animate-spin" />
+                                Loading...
+                            </>
+                        ) : (
+                            'Logout'
+                        )}
+                    </div>
                 </div>
+                <CreatedBy
+                  mystyle={"p-2 text-sm font-semibold"}
+                />
             </aside>
+
 
 
             {
                 selectedContact ?
-                    <div className={`${isMobileContactsVisible ? 'hidden' : 'block'} md:block w-full`}>
+                    <div className={`${isMobileContactsVisible ? 'hidden' : 'block'} md:block w-full `}>
                         <div className='flex md:hidden '>
                             <div className='cursor-pointer mb-2' onClick={handleBackToContacts}>Back to contact list</div>
                         </div>
-                        <div className='border shadow-md  p-2'>
+                        <div className='border shadow-md p-2 bg-gradient-to-r from-blue-300 via-white to-blue-200 animate-gradient-xy ' >
                             <div className='flex items-center gap-2 relative '>
                                 <div className='rounded-full'>
                                     <img className='rounded-full w-10 h-10' src={selectedContact?.profilePic ? selectedContact?.profilePic : defaultUserIcon} alt={`loading`} />
@@ -194,13 +210,13 @@ const ChatPage = () => {
                                     <span className={`absolute left-6 top-0 block h-3 w-3 rounded-full ${selectedContact.isLogin ? 'bg-green-500' : 'bg-gray-400'}`} style={{ border: '2px solid white', transform: 'translate(50%, 50%)' }}></span>
                                 </div>
                                 <div>
-                                    <div className='font-semibold'>{selectedContact?.name}</div>
+                                    <div className='font-semibold capitalize'>{selectedContact?.name}</div>
                                     <div className='text-xs'>{selectedContact?.mobileNumber}</div>
                                 </div>
                             </div>
                         </div>
-                        <div className="p-1 w-full flex flex-col justify-between border" >
-                            <div className='h-[450px] overflow-auto flex flex-col scrollbar-thin p-2'>
+                        <div className="p-1 w-full flex flex-col justify-between border h-[87vh]" >
+                            <div className='flex-grow overflow-auto flex flex-col scrollbar-thin p-2' style={{ height: 'calc(100vh - 250px)' }}> {/* Adjusted for dynamic height */}
                                 <div className=" bg-cover bg-no-repeat min-h-screen p-4">
                                     {/* Container for messages */}
                                     <div className="space-y-2">
@@ -234,29 +250,31 @@ const ChatPage = () => {
                                         }
                                     </div>
                                 </div>
-
-
                             </div>
                             <div className="shadow-lg w-full mb-6">
-                                <div className="flex-grow flex items-center relative border rounded border-gray-300">
+                                <div className="flex items-center relative border rounded border-gray-300">
                                     <input
                                         type="text"
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        className="w-full p-2 pl-10 rounded-l focus:outline-none"
+                                        className="w-full py-3 pl-5 pr-20 rounded-l focus:outline-none" // Adjust padding-right to reserve space for the button
                                         placeholder="Write a message..."
+                                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()} // Optional: send message on Enter key press
                                     />
                                     <button
                                         onClick={sendMessage}
-                                        className="absolute right-0 ml-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1.5 px-4 rounded-l"
+                                        className="absolute right-6 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1.5 px-6 rounded-md"
+                                        style={{ top: '50%', transform: 'translateY(-50%)' }} // Vertically center the button
                                     >
                                         Send
                                     </button>
                                 </div>
                             </div>
+
                         </div>
                     </div> : null
             }
+
 
             {
                 isModalOpen ? <LearnMoreModal isOpen={isModalOpen} close={() => setIsModalOpen(false)} /> : null
