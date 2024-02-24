@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
-
+import Config from '../utils/config';
 const AddUserPage = ({isAddUserModalOpen, closeAddUserModal }) => {
   const [newUser, setNewUser] = useState({
     name: '',
@@ -16,7 +16,7 @@ const AddUserPage = ({isAddUserModalOpen, closeAddUserModal }) => {
     formData.append('mobileNumber', newUser.mobileNumber);
     formData.append('profilePic', newUser.profilePic);
 
-    fetch('http://localhost:4000/addUser', {
+    fetch(`${Config.URL}/addUser`, {
       method: 'POST',
       body: formData,
     })

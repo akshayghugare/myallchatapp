@@ -7,7 +7,9 @@ import moment from 'moment'
 import LearnMoreModal from '../modals/LearnMoreModal';
 import AddUserPage from './AddUserPage';
 import addusericon from '../assets/new-user.png'
-const socket = io('http://localhost:4000');
+import Config from '../utils/config';
+
+const socket = io(Config.URL);
 
 const ChatPage = () => {
 
@@ -25,7 +27,7 @@ const ChatPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     useEffect(() => {
         const fetchContacts = () => {
-            fetch('http://localhost:4000/getAllUsers')
+            fetch(`${Config.URL}/getAllUsers`)
                 .then(response => response.json())
                 .then(data => {
                     const filteredContacts = data.filter(contact => contact._id !== currentUserID);
@@ -59,7 +61,7 @@ const ChatPage = () => {
 
     const selectContact = (contact) => {
         setSelectedContact(contact);
-        fetch(`http://localhost:4000/getMessages/${currentUserID}/${contact._id}`)
+        fetch(`${Config.URL}/getMessages/${currentUserID}/${contact._id}`)
             .then(response => response.json())
             .then(data => setMessages(data))
             .catch(error => console.error('Error fetching messages:', error));
