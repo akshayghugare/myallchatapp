@@ -127,7 +127,7 @@ const ChatPage = () => {
 
                         <div className='flex item-center gap-2'>
                             <div className='rounded-full '>
-                                <img className='rounded-full w-10 h-10 ' src={loginUser?.user?.profilePic?loginUser?.user?.profilePic:defaultLoginUserIcon} />
+                                <img className='rounded-full w-10 h-10 ' src={loginUser?.user?.profilePic ? loginUser?.user?.profilePic : defaultLoginUserIcon} />
                             </div>
                             <div>
                                 <div className='font-semibold'>{loginUser?.user?.name}</div>
@@ -158,7 +158,7 @@ const ChatPage = () => {
                                 <div key={index} onClick={() => selectContact(contact)} className="p-2 hover:bg-gray-500 hover:text-white cursor-pointer">
                                     <div className='flex items-center gap-2 relative border p-1 border-t-0 border-l-0 border-r-0'>
                                         <div className='rounded-full'>
-                                            <img className='rounded-full w-10 h-10' src={contact?.profilePic?contact?.profilePic:defaultUserIcon} alt={`loading`} />
+                                            <img className='rounded-full w-10 h-10' src={contact?.profilePic ? contact?.profilePic : defaultUserIcon} alt={`loading`} />
                                             {/* Status indicator dot */}
                                             <span className={`absolute left-6 top-0 block h-3 w-3 rounded-full ${contact.isLogin ? 'bg-green-500' : 'bg-gray-400'}`} style={{ border: '2px solid white', transform: 'translate(50%, 50%)' }}></span>
                                         </div>
@@ -182,22 +182,22 @@ const ChatPage = () => {
 
             {
                 selectedContact ?
-                <div className={`${isMobileContactsVisible ? 'hidden' : 'block'} md:block w-full`}>
+                    <div className={`${isMobileContactsVisible ? 'hidden' : 'block'} md:block w-full`}>
                         <div className='flex md:hidden '>
                             <div className='cursor-pointer mb-2' onClick={handleBackToContacts}>Back to contact list</div>
                         </div>
                         <div className='border shadow-md  p-2'>
-                        <div className='flex items-center gap-2 relative '>
-                                        <div className='rounded-full'>
-                                            <img className='rounded-full w-10 h-10' src={selectedContact?.profilePic?selectedContact?.profilePic:defaultUserIcon} alt={`loading`} />
-                                            {/* Status indicator dot */}
-                                            <span className={`absolute left-6 top-0 block h-3 w-3 rounded-full ${selectedContact.isLogin ? 'bg-green-500' : 'bg-gray-400'}`} style={{ border: '2px solid white', transform: 'translate(50%, 50%)' }}></span>
-                                        </div>
-                                        <div>
-                                            <div className='font-semibold'>{selectedContact?.name}</div>
-                                            <div className='text-xs'>{selectedContact?.mobileNumber}</div>
-                                        </div>
-                                    </div>
+                            <div className='flex items-center gap-2 relative '>
+                                <div className='rounded-full'>
+                                    <img className='rounded-full w-10 h-10' src={selectedContact?.profilePic ? selectedContact?.profilePic : defaultUserIcon} alt={`loading`} />
+                                    {/* Status indicator dot */}
+                                    <span className={`absolute left-6 top-0 block h-3 w-3 rounded-full ${selectedContact.isLogin ? 'bg-green-500' : 'bg-gray-400'}`} style={{ border: '2px solid white', transform: 'translate(50%, 50%)' }}></span>
+                                </div>
+                                <div>
+                                    <div className='font-semibold'>{selectedContact?.name}</div>
+                                    <div className='text-xs'>{selectedContact?.mobileNumber}</div>
+                                </div>
+                            </div>
                         </div>
                         <div className="p-1 w-full flex flex-col justify-between border" >
                             <div className='h-[450px] overflow-auto flex flex-col scrollbar-thin p-2'>
