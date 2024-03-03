@@ -11,6 +11,7 @@ import defaultUserIcon from '../assets/defaultuser2.png'
 import defaultLoginUserIcon from '../assets/defaultuser.png'
 import Config from '../utils/config';
 import Loader from '../assets/loader.svg';
+import plusIcon from '../assets/plus.png';
 import CreatedBy from './CreatedBy';
 const socket = io(Config.URL);
 
@@ -30,6 +31,12 @@ const ChatPage = () => {
     const [adduserModal, setAddUserModal] = useState(false)
     const [searchQuery, setSearchQuery] = useState('');
 
+    // uload file and images
+
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [iconSpinning, setIconSpinning] = useState(false);
+
+
     useEffect(() => {
         if (currentUserID && selectedContact) {
             // Join the chat room for the current user and the selected contact
@@ -44,7 +51,7 @@ const ChatPage = () => {
             socket.off('message');
             // Optionally, implement logic to leave the chat room if needed
         };
-    }, [message,messages]);
+    }, [message, messages]);
 
     useEffect(() => {
         const fetchContacts = () => {
@@ -139,13 +146,27 @@ const ChatPage = () => {
         setSelectedContact(null); // Deselect the current contact
     };
 
+    const toggleDropdown = () => {
+        setIconSpinning(true);
+        setTimeout(() => setIconSpinning(false), 1000); // Stop spinning after 1 second
+        setDropdownOpen(!dropdownOpen);
+    };
+
+    const handleFileChange = (e, type) => {
+        const file = e.target.files[0];
+        if (file) {
+            setMessage(`${type}: ${file.name}`); // Update the message input to show the selected file
+            setDropdownOpen(false); // Close the dropdown
+        }
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      };
-    
-      useEffect(() => {
+    };
+
+    useEffect(() => {
         scrollToBottom(); // Call this function whenever the messages array changes
-      }, [messages]);
+    }, [messages]);
 
     return (
         <div className="md:flex h-screen">
@@ -215,7 +236,7 @@ const ChatPage = () => {
                     </div>
                 </div>
                 <CreatedBy
-                  mystyle={"p-2 text-sm font-semibold"}
+                    mystyle={"p-2 text-sm font-semibold"}
                 />
             </aside>
 
@@ -247,10 +268,10 @@ const ChatPage = () => {
                                     <div className="space-y-2">
                                         {messages?.length ? messages.map((msg, index) => (
                                             <div
-                                            key={index}
-                                            className={`flex flex-col ${msg?.sender === currentUserID ? 'items-end' : 'items-start'}`}
-                                            ref={index === messages.length - 1 ? messagesEndRef : null} // Set the ref to the last message
-                                          >
+                                                key={index}
+                                                className={`flex flex-col ${msg?.sender === currentUserID ? 'items-end' : 'items-start'}`}
+                                                ref={index === messages.length - 1 ? messagesEndRef : null} // Set the ref to the last message
+                                            >
                                                 <div
                                                     className={`flex gap-1 item-center mb-2 max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 ${msg?.sender === currentUserID ? 'bg-green-200' : 'bg-white'} rounded-lg shadow-md`}
                                                 >
@@ -279,6 +300,22 @@ const ChatPage = () => {
                             </div>
                             <div className="shadow-lg w-full mb-6">
                                 <div className="flex items-center relative border rounded border-gray-300">
+                                    <div className="flex items-center ml-8">
+                                        <div className="cursor-pointer" onClick={toggleDropdown}>
+                                            <img src={plusIcon} className={`rounded-full w-5 ${dropdownOpen?"animate-spin":""} `}/>
+                                        </div>
+                                        {dropdownOpen && (
+                                            <div className="absolute bottom-full mb-2 left-0 bg-white shadow-md rounded border border-gray-300">
+                                                <ul className="text-sm text-gray-700">
+                                                    <li className="cursor-pointer p-2 hover:bg-gray-100" onClick={() => document.getElementById('image-upload').click()}>Image Upload</li>
+                                                    <li className="cursor-pointer p-2 hover:bg-gray-100" onClick={() => document.getElementById('doc-upload').click()}>Doc Upload</li>
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {/* Separate inputs for image and document uploads, hidden from view */}
+                                        <input id="image-upload" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'Image')} className="hidden" />
+                                        <input id="doc-upload" type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => handleFileChange(e, 'Document')} className="hidden" />
+                                    </div>
                                     <input
                                         type="text"
                                         value={message}
