@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import io from 'socket.io-client';
@@ -15,7 +15,7 @@ import CreatedBy from './CreatedBy';
 const socket = io(Config.URL);
 
 const ChatPage = () => {
-
+    const messagesEndRef = useRef(null);
     const navigate = useNavigate();
     const [isMobileContactsVisible, setIsMobileContactsVisible] = useState(true);
     const loggedUserID = localStorage.getItem('user');
@@ -122,6 +122,14 @@ const ChatPage = () => {
         setSelectedContact(null); // Deselect the current contact
     };
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      };
+    
+      useEffect(() => {
+        scrollToBottom(); // Call this function whenever the messages array changes
+      }, [messages]);
+
     return (
         <div className="md:flex h-screen">
             <aside className={`${isMobileContactsVisible ? 'block' : 'hidden'} md:block md:w-[40%] h-screen flex flex-col justify-between border text-black overflow-auto`}>
@@ -222,9 +230,10 @@ const ChatPage = () => {
                                     <div className="space-y-2">
                                         {messages?.length ? messages.map((msg, index) => (
                                             <div
-                                                key={index}
-                                                className={`flex flex-col ${msg?.sender === currentUserID ? 'items-end' : 'items-start'}`}
-                                            >
+                                            key={index}
+                                            className={`flex flex-col ${msg?.sender === currentUserID ? 'items-end' : 'items-start'}`}
+                                            ref={index === messages.length - 1 ? messagesEndRef : null} // Set the ref to the last message
+                                          >
                                                 <div
                                                     className={`flex gap-1 item-center mb-2 max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 ${msg?.sender === currentUserID ? 'bg-green-200' : 'bg-white'} rounded-lg shadow-md`}
                                                 >
