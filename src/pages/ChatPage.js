@@ -29,6 +29,23 @@ const ChatPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [adduserModal, setAddUserModal] = useState(false)
     const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        if (currentUserID && selectedContact) {
+            // Join the chat room for the current user and the selected contact
+            socket.emit('joinChat', { userId: currentUserID, contactId: selectedContact._id });
+
+            socket.on('message', (newMessage) => {
+                setMessages((prevMessages) => [...prevMessages, newMessage]);
+            });
+        }
+
+        return () => {
+            socket.off('message');
+            // Optionally, implement logic to leave the chat room if needed
+        };
+    }, [message,messages]);
+
     useEffect(() => {
         const fetchContacts = () => {
             fetch(`${Config.URL}/getAllUsers`)
