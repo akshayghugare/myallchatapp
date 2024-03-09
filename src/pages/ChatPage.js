@@ -13,6 +13,11 @@ import Config from '../utils/config';
 import Loader from '../assets/loader.svg';
 import plusIcon from '../assets/plus.png';
 import CreatedBy from './CreatedBy';
+import UpdateProfilePicModal from '../modals/UpdateProfilePicModal';
+import axios from 'axios';
+// import io from 'socket.io-client';
+import Peer from 'simple-peer';
+
 const socket = io(Config.URL);
 
 const ChatPage = () => {
@@ -21,71 +26,117 @@ const ChatPage = () => {
     const [isMobileContactsVisible, setIsMobileContactsVisible] = useState(true);
     const loggedUserID = localStorage.getItem('user');
     const loginUser = JSON.parse(loggedUserID);
-    const currentUserID = loginUser?.user?._id || "";
+    const currentUserID = loginUser?.user?._id || '';
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
     const [contacts, setContacts] = useState([]);
     const [selectedContact, setSelectedContact] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [adduserModal, setAddUserModal] = useState(false)
+    const [adduserModal, setAddUserModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-
-    // uload file and images
-
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [iconSpinning, setIconSpinning] = useState(false);
-
+    const [isProfilePicModalOpen, setIsProfilePicModalOpen] = useState(false);
+    const [myId, setMyId] = useState('');
+    const [callToId, setCallToId] = useState('');
+    const [stream, setStream] = useState(null);
+    const [receivingCall, setReceivingCall] = useState(false);
+    const [caller, setCaller] = useState('');
+    const [callerSignal, setCallerSignal] = useState(null);
+    const [callAccepted, setCallAccepted] = useState(false);
+    const userVideo = useRef(null);
+    const partnerVideo = useRef(null);
+    const [heightMessages, setHeightMessages] = useState(false);
 
     useEffect(() => {
-        if (currentUserID && selectedContact) {
-            // Join the chat room for the current user and the selected contact
-            socket.emit('joinChat', { userId: currentUserID, contactId: selectedContact._id });
-
-            socket.on('message', (newMessage) => {
-                setMessages((prevMessages) => [...prevMessages, newMessage]);
-            });
-        }
-
+       if(heightMessages){
+        socket.current = io(Config.URL);
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          .then((currentStream) => {
+            setStream(currentStream);
+            if (userVideo.current) {
+              userVideo.current.srcObject = currentStream;
+            }
+          });
+    
+        socket.current.on('myId', (id) => {
+          setMyId(id);
+        });
+    
+        socket.current.on('callReceived', (data) => {
+          setReceivingCall(true);
+          setCaller(data.from);
+          setCallerSignal(data.signal);
+          Swal.fire(`Incoming call from ${data.from}`)
+        //   alert(`Incoming call from ${data.from}`);
+        });
+    
+        socket.current.on('message', (data) => {
+          setMessages((prevMessages) => [...prevMessages, data]);
+        });
+    
+        // Clean up on component unmount
         return () => {
-            socket.off('message');
-            // Optionally, implement logic to leave the chat room if needed
+          socket.current.disconnect();
         };
-    }, [message, messages]);
-
-    useEffect(() => {
-        const fetchContacts = () => {
-            fetch(`${Config.URL}/getAllUsers`)
-                .then(response => response.json())
-                .then(data => {
-                    const filteredContacts = data.filter(contact => contact._id !== currentUserID);
-                    setContacts(filteredContacts);
-                })
-                .catch(error => console.error('Error fetching contacts:', error));
-        };
-
-        fetchContacts();
-
-        const messageListener = (newMessage) => {
-            // Update to check duplicates before setting messages
-            setMessages((prevMessages) => {
-                const isDuplicate = prevMessages.some(
-                    (msg) => msg._id === newMessage._id // Assuming each message has a unique _id
-                );
-                if (!isDuplicate) {
-                    return [...prevMessages, newMessage];
-                } else {
-                    return prevMessages; // Return the current state if duplicate
+       }else{
+        console.log("ddd something went wrong")
+       }
+      }, [receivingCall,heightMessages]);
+    
+    const callUser = () => {
+        setHeightMessages(true);
+        if(heightMessages){
+            const peer = new Peer({
+                initiator: true,
+                trickle: false,
+                stream: stream,
+              });
+          
+              peer.on('signal', (data) => {
+                socket.current.emit('callUser', { userToCall: callToId, signalData: data, from: myId });
+              });
+          
+              peer.on('stream', (partnerStream) => {
+                if (partnerVideo.current) {
+                  partnerVideo.current.srcObject = partnerStream;
                 }
-            });
-        };
+              });
+          
+              socket.current.on('callAccepted', (signal) => {
+                setCallAccepted(true);
+                peer.signal(signal);
+              });
+        }else{
+            console.log("fsdsd something went wrong")
+        }
+    };
+    
+    const acceptCall = () => {
+        setCallAccepted(true);
+        const peer = new Peer({
+          initiator: false,
+          trickle: false,
+          stream: stream,
+        });
+    
+        peer.on('signal', (data) => {
+          socket.current.emit('acceptCall', { signal: data, to: caller });
+        });
+    
+        peer.on('stream', (partnerStream) => {
+          partnerVideo.current.srcObject = partnerStream;
+        });
+    
+        peer.signal(callerSignal);
+    };
 
-        socket.on('message', messageListener);
-
-        // Cleanup the event listener when the component unmounts or selectedContact/currentUserID changes
-        return () => socket.off('message', messageListener);
-    }, [selectedContact, currentUserID, adduserModal]);
-
+    const cancelCall = () => {
+        console.log("Cancel call");
+        setReceivingCall(false);
+        socket.current.emit('cancelCall', { signal: callerSignal ,to: caller });
+    };
 
     const selectContact = (contact) => {
         setSelectedContact(contact);
@@ -113,18 +164,17 @@ const ChatPage = () => {
     );
 
     const handleLogout = () => {
-        // Correctly format the body as JSON and set Content-Type header
-        setLoading(true)
+        setLoading(true);
         const payload = {
             name: loginUser?.user?.name,
             mobileNumber: loginUser?.user?.mobileNumber
-        }
+        };
         fetch(`${Config.URL}/logout`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json', // Indicate that the request body format is JSON
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify(payload), // Properly stringify the formData object
+            body: JSON.stringify(payload),
         })
             .then(response => {
                 if (!response.ok) {
@@ -134,39 +184,110 @@ const ChatPage = () => {
             })
             .then(data => {
                 console.log('User login:', data);
-                localStorage.clear('user')
-                setLoading(false)
-                navigate('/')
-                Swal.fire("Logout successful!") // Store the returned data instead of formData
+                localStorage.clear('user');
+                setLoading(false);
+                navigate('/');
+                Swal.fire("Logout successful!");
             })
             .catch(error => console.error('Error adding user:', error));
     };
+
     const handleBackToContacts = () => {
-        setIsMobileContactsVisible(true); // Show contacts list again
-        setSelectedContact(null); // Deselect the current contact
+        setIsMobileContactsVisible(true);
+        setSelectedContact(null);
     };
 
     const toggleDropdown = () => {
         setIconSpinning(true);
-        setTimeout(() => setIconSpinning(false), 1000); // Stop spinning after 1 second
+        setTimeout(() => setIconSpinning(false), 1000);
         setDropdownOpen(!dropdownOpen);
     };
 
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
         if (file) {
-            setMessage(`${type}: ${file.name}`); // Update the message input to show the selected file
-            setDropdownOpen(false); // Close the dropdown
+            setMessage(`${type}: ${file.name}`);
+            setDropdownOpen(false);
         }
+    };
+
+    const handleDeleteContact = async (contact) => {
+        try {
+            const response = await axios.post(`${Config.URL}/delete-user/${contact._id}`);
+            console.log("delete", response);
+            if (response) {
+                await axios.get(`${Config.URL}/getAllUsers`);
+                Swal.fire("User Delete successful!");
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    const openProfilePicModal = () => {
+        setIsProfilePicModalOpen(true);
+    };
+
+    const closeProfilePicModal = () => {
+        setIsProfilePicModalOpen(false);
     };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const handleVideoCall = (contact) => {
+        console.log('Initiating video call with', contact);
+    };
+
     useEffect(() => {
-        scrollToBottom(); // Call this function whenever the messages array changes
+        scrollToBottom();
     }, [messages]);
+
+    useEffect(() => {
+        if (currentUserID && selectedContact) {
+            socket.emit('joinChat', { userId: currentUserID, contactId: selectedContact._id });
+
+            socket.on('message', (newMessage) => {
+                setMessages((prevMessages) => [...prevMessages, newMessage]);
+            });
+        }
+
+        return () => {
+            socket.off('message');
+        };
+    }, [message, messages]);
+
+    useEffect(() => {
+        const fetchContacts = () => {
+            fetch(`${Config.URL}/getAllUsers`)
+                .then(response => response.json())
+                .then(data => {
+                    const filteredContacts = data.filter(contact => contact._id !== currentUserID);
+                    setContacts(filteredContacts);
+                })
+                .catch(error => console.error('Error fetching contacts:', error));
+        };
+
+        fetchContacts();
+
+        const messageListener = (newMessage) => {
+            setMessages((prevMessages) => {
+                const isDuplicate = prevMessages.some(
+                    (msg) => msg._id === newMessage._id
+                );
+                if (!isDuplicate) {
+                    return [...prevMessages, newMessage];
+                } else {
+                    return prevMessages;
+                }
+            });
+        };
+
+        socket.on('message', messageListener);
+
+        return () => socket.off('message', messageListener);
+    }, [selectedContact, currentUserID, adduserModal]);
 
     return (
         <div className="md:flex h-screen">
@@ -174,7 +295,7 @@ const ChatPage = () => {
                 <div>
                     <div className="flex justify-between item-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 bg-gradient-to-r from-blue-700 via-blue-300 to-blue-500 animate-gradient-xy">
                         <div className='flex item-center gap-2'>
-                            <div className='rounded-full'>
+                            <div onClick={() => { openProfilePicModal() }} className='rounded-full cursor-pointer'>
                                 <img className='rounded-full w-10 h-10' src={loginUser?.user?.profilePic ? loginUser?.user?.profilePic : defaultLoginUserIcon} alt="Profile" />
                             </div>
                             <div>
@@ -202,8 +323,9 @@ const ChatPage = () => {
                         </div>
                         <div className='overflow-auto scrollbar-thin' style={{ height: 'calc(100vh - 220px)' }}> {/* Adjusted for dynamic height */}
                             {filteredContacts.map((contact, index) => (
-                                <div key={index} onClick={() => selectContact(contact)} className="p-2 border hover:bg-blue-50  border-t-0 border-l-0 border-r-0 cursor-pointer">
-                                    <div className='flex items-center gap-2 relative  '>
+                                <div key={index}  className="p-2 border hover:bg-blue-50  border-t-0 border-l-0 border-r-0 ">
+                                    <div className='flex items-center justify-between'>
+                                    <div onClick={() => selectContact(contact)} className='flex items-center gap-2 relative cursor-pointer '>
                                         <div className='rounded-full'>
                                             <img className='rounded-full w-10 h-10' src={contact?.profilePic ? contact?.profilePic : defaultUserIcon} alt="Contact" />
                                             {/* Status indicator dot */}
@@ -214,6 +336,10 @@ const ChatPage = () => {
                                             <div className='text-xs'>{contact?.mobileNumber}</div>
                                         </div>
                                     </div>
+                                    <div className='mr-2 text-red-500 cursor-pointer' onClick={()=>{ handleDeleteContact(contact)}}>
+                                        Delete
+                                    </div>
+                                     </div>   
                                 </div>
                             ))}
                         </div>
@@ -248,8 +374,9 @@ const ChatPage = () => {
                         <div className='flex md:hidden '>
                             <div className='cursor-pointer mb-2' onClick={handleBackToContacts}>Back to contact list</div>
                         </div>
-                        <div className='border shadow-md p-2 bg-gradient-to-r from-blue-300 via-white to-blue-200 animate-gradient-xy ' >
-                            <div className='flex items-center gap-2 relative '>
+                        <div className={`border shadow-md p-2 bg-gradient-to-r from-blue-300 via-white to-blue-200 animate-gradient-xy ${heightMessages?"h-60px":"md:h-[70px]"}`}>
+                            <div className='md:flex md:items-center md:justify-between '>
+                                <div className='flex items-center gap-2 relative '>
                                 <div className='rounded-full'>
                                     <img className='rounded-full w-10 h-10' src={selectedContact?.profilePic ? selectedContact?.profilePic : defaultUserIcon} alt={`loading`} />
                                     {/* Status indicator dot */}
@@ -259,10 +386,47 @@ const ChatPage = () => {
                                     <div className='font-semibold capitalize'>{selectedContact?.name}</div>
                                     <div className='text-xs'>{selectedContact?.mobileNumber}</div>
                                 </div>
+                                </div>
+                                <div className={`sm:flex md:gap-5 ${receivingCall && !callAccepted || callAccepted?"hidden":"block"}`}>
+                                {myId && <p>Your ID: {myId}</p>}
+                                    <input
+                                    className={`h-10 rounded-lg p-2 border border-black  ${heightMessages?"block":"hidden"}`}
+                                        type="text"
+                                        value={callToId}
+                                        onChange={(e) => setCallToId(e.target.value)}
+                                        placeholder="ID to call"
+                                    />
+                                    <button className='h-10 ml-2 sm:ml-0 rounded-lg py-2 px-8 border border-black' onClick={callUser}>Call</button>
+                                </div>
+                                
                             </div>
+                            <div className='flex item-center gap-5 '>
+                            <div className={`${heightMessages?"block":"hidden"}`}>
+                                    
+                                    {/* {stream ?
+                                        <div>
+                                            <div>My window</div>
+                                            <video playsInline muted ref={userVideo} autoPlay style={{ width: "300px" }} />
+
+                                        </div>
+                                    :null} */}
+                                    {callAccepted ?
+                                    <div>
+                                        <video playsInline ref={partnerVideo} autoPlay style={{ width: "300px" }} />
+                                        <button className='h-10 ml-2 sm:ml-0 rounded-lg py-2 px-8 border border-black' onClick={cancelCall}>Cancel</button>
+                                    </div>
+                                    :""}
+                                </div>
+                                {receivingCall && !callAccepted && (
+                                    <div>
+                                        <h1>Incoming call...</h1>
+                                        <button className='h-10 rounded-lg py-2 px-8 border border-black' onClick={acceptCall}>Accept</button>
+                                    </div>
+                                )}
+                                </div>
                         </div>
-                        <div className="p-1 w-full flex flex-col justify-between border h-[87vh]" >
-                            <div className='flex-grow overflow-auto flex flex-col scrollbar-thin p-2' style={{ height: 'calc(100vh - 250px)' }}> {/* Adjusted for dynamic height */}
+                        <div className={`p-1 w-full flex flex-col justify-between border ${heightMessages?'h-[44vh]':'h-[87vh]'}`} >
+                            <div className='flex-grow overflow-auto flex flex-col scrollbar-thin p-2' > {/* Adjusted for dynamic height */}
                                 <div className=" bg-cover bg-no-repeat min-h-screen p-4">
                                     {/* Container for messages */}
                                     <div className="space-y-2">
@@ -302,7 +466,7 @@ const ChatPage = () => {
                                 <div className="flex items-center relative border rounded border-gray-300">
                                     <div className="flex items-center ml-8">
                                         <div className="cursor-pointer" onClick={toggleDropdown}>
-                                            <img src={plusIcon} className={`rounded-full w-5 ${dropdownOpen?"animate-spin":""} `}/>
+                                            <img src={plusIcon} className={`rounded-full w-5 ${dropdownOpen ? "animate-spin" : ""} `} />
                                         </div>
                                         {dropdownOpen && (
                                             <div className="absolute bottom-full mb-2 left-0 bg-white shadow-md rounded border border-gray-300">
@@ -345,6 +509,8 @@ const ChatPage = () => {
             {
                 adduserModal ? <AddUserPage isAddUserModalOpen={adduserModal} closeAddUserModal={() => setAddUserModal(false)} /> : null
             }
+            {isProfilePicModalOpen ? <UpdateProfilePicModal userId={currentUserID} onClose={closeProfilePicModal} /> : null}
+
             {/* <div onClick={() => navigate('/adduser')} className="fixed bottom-4 right-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
                 +
             </div> */}
